@@ -1,44 +1,128 @@
-"use client";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-import { useMemo, useState } from "react";
-import { categoriesForType } from "@/lib/finance-categories";
-import type { Transaction, TransactionType } from "@/types/finance";
+import {
+  getCategoriesByType,
+  getSubcategoriesByCategory,
+  type TransactionType,
+} from "../lib/finance-categories";
 
-type Props = {
-  action: (formData: FormData) => void;
-  initialType?: TransactionType;
-  transaction?: Transaction;
-  submitLabel?: string;
+type TransactionFormValues = {
+  type: TransactionType;
+  category: string;
+  subcategory: string;
+  amount: string;
+  date: string;
+  notes: string;
 };
 
-export function TransactionForm({ action, initialType = "expense", transaction, submitLabel = "Guardar" }: Props) {
-  const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
-  const categories = useMemo(() => categoriesForType(type), [type]);
-  const defaultCategory = transaction?.type === type ? transaction.category : categories[0]?.name ?? "";
-  const [category, setCategory] = useState(defaultCategory);
-  const subcategories = categories.find((item) => item.name === category)?.subcategories ?? categories[0]?.subcategories ?? [];
+type TransactionFormProps = {
+  onSubmit?: (values: TransactionFormValues) => void;
+};
 
-  function changeType(nextType: TransactionType) {
+const initialType: TransactionType = "expense";
+const initialCategory = getCategoriesByType(initialType)[0]?.category ?? "";
+const initialSubcategory = getSubcategoriesByCategory(initialType, initialCategory)[0] ?? "";
+
+export function TransactionForm({ onSubmit }: TransactionFormProps) {
+  const [type, setType] = useState<TransactionType>(initialType);
+  const [category, setCategory] = useState(initialCategory);
+  const [subcategory, setSubcategory] = useState(initialSubcategory);
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const categories = useMemo(() => getCategoriesByType(type), [type]);
+  const subcategories = useMemo(
+    () => getSubcategoriesByCategory(type, category),
+    [type, category],
+  );
+
+  useEffect(() => {
+    const firstCategory = categories[0]?.category ?? "";
+
+    if (!categories.some((financeCategory) => financeCategory.category === category)) {
+      setCategory(firstCategory);
+    }
+  }, [categories, category]);
+
+  useEffect(() => {
+    const firstSubcategory = subcategories[0] ?? "";
+
+    if (!subcategories.includes(subcategory)) {
+      setSubcategory(firstSubcategory);
+    }
+  }, [subcategories, subcategory]);
+
+  function handleTypeChange(nextType: TransactionType) {
+    const nextCategory = getCategoriesByType(nextType)[0]?.category ?? "";
+    const nextSubcategory = getSubcategoriesByCategory(nextType, nextCategory)[0] ?? "";
+
     setType(nextType);
-    setCategory(categoriesForType(nextType)[0]?.name ?? "");
+    setCategory(nextCategory);
+    setSubcategory(nextSubcategory);
+  }
+
+  function handleCategoryChange(nextCategory: string) {
+    const nextSubcategory = getSubcategoriesByCategory(type, nextCategory)[0] ?? "";
+
+    setCategory(nextCategory);
+    setSubcategory(nextSubcategory);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    onSubmit?.({ type, category, subcategory, amount, date, notes });
   }
 
   return (
-    <form action={action} className="space-y-4 rounded-3xl bg-white p-5 shadow-sm">
-      <div className="grid grid-cols-2 gap-2">
-        {(["expense", "income"] as TransactionType[]).map((option) => (
-          <label key={option} className={`rounded-2xl border p-3 text-center text-sm font-semibold ${type === option ? "border-brand bg-blue-50 text-brand" : "border-slate-200"}`}>
-            <input className="sr-only" name="type" type="radio" value={option} checked={type === option} onChange={() => changeType(option)} />
-            {option === "expense" ? "Despesa" : "Receita"}
-          </label>
-        ))}
-      </div>
-      <label className="block text-sm font-medium">Data<input name="date" type="date" required defaultValue={transaction?.date ?? new Date().toISOString().slice(0, 10)} /></label>
-      <label className="block text-sm font-medium">Categoria<select name="category" required value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item.name}>{item.name}</option>)}</select></label>
-      <label className="block text-sm font-medium">Subcategoria<select name="subcategory" required defaultValue={transaction?.subcategory ?? subcategories[0]} key={`${type}-${category}`}>{subcategories.map((subcategory) => <option key={subcategory}>{subcategory}</option>)}</select></label>
-      <label className="block text-sm font-medium">Valor<input name="amount" type="number" step="0.01" min="0" required defaultValue={transaction?.amount} placeholder="0,00" /></label>
-      <label className="block text-sm font-medium">Notas<textarea name="notes" rows={3} defaultValue={transaction?.notes ?? ""} placeholder="Opcional" /></label>
-      <button className="w-full bg-brand text-white hover:bg-blue-700" type="submit">{submitLabel}</button>
+    <form onSubmit={handleSubmit}>
+      <label>
+        Tipo
+        <select required value={type} onChange={(event) => handleTypeChange(event.target.value as TransactionType)}>
+          <option value="expense">Despesa</option>
+          <option value="income">Rendimento</option>
+        </select>
+      </label>
+
+      <label>
+        Categoria
+        <select required value={category} onChange={(event) => handleCategoryChange(event.target.value)}>
+          {categories.map((financeCategory) => (
+            <option key={financeCategory.category} value={financeCategory.category}>
+              {financeCategory.category}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Subcategoria
+        <select required value={subcategory} onChange={(event) => setSubcategory(event.target.value)}>
+          {subcategories.map((subcategoryOption) => (
+            <option key={subcategoryOption} value={subcategoryOption}>
+              {subcategoryOption}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Montante
+        <input required type="number" value={amount} onChange={(event) => setAmount(event.target.value)} />
+      </label>
+
+      <label>
+        Data
+        <input required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+      </label>
+
+      <label>
+        Notas
+        <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+      </label>
+
+      <button type="submit">Guardar</button>
     </form>
   );
 }

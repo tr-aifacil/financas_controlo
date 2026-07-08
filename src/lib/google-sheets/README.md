@@ -1,14 +1,15 @@
-# Futuro sincronizador Google Sheets
+# Google Sheets export
 
-A sincronização deverá procurar transações com `synced_to_sheet = false`, escrever apenas os campos necessários na folha **“Registo de transações”** e marcar `synced_to_sheet`/`synced_at` depois de uma escrita bem-sucedida.
+The transactions sheet receives the following fields:
 
-Mapeamento planeado:
+| Column | Field |
+| --- | --- |
+| A | date |
+| B | type |
+| C | category |
+| D | subcategory |
+| E | formula-managed value |
+| F | amount |
+| G | notes |
 
-| Campo da transação | Google Sheet | Coluna |
-| --- | --- | --- |
-| `date` | Registo de transações | B |
-| `subcategory` | Registo de transações | D |
-| `amount` | Registo de transações | F |
-| `notes` | Registo de transações | G |
-
-Não escrever nas colunas C e E, porque são fórmulas mantidas na própria folha.
+Column D must receive `subcategory`. Column E must not be written by the application because it is managed by a spreadsheet formula.
